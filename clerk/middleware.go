@@ -11,6 +11,37 @@ const (
 	ActiveSessionClaims
 )
 
+func WithSessionV2(client Client) func(handler http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			headerToken := strings.TrimSpace(r.Header.Get("Authorization"))
+			cookieToken, _ := r.Cookie("__session")
+			clientUat := r.Cookie("__client_uat")
+
+			// ****************************************************
+			//																										*
+			//                HEADER AUTHENTICATION               *
+			//                                                    *
+			// ****************************************************
+
+			if headerToken != "" {
+				if !client.DecodeToken(headerToken) {
+					return //signed out
+				}
+
+				token := client.VerifyToken(headerToken)
+				if token {
+					return //signed_in
+				}
+
+        // Clerk.js should refresh the token and retry
+        return unknown(interstitial: false)
+			}
+
+		})
+	}
+}
+
 func WithSession(client Client) func(handler http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
